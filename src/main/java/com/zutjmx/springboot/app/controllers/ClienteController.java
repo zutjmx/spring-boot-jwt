@@ -1,20 +1,17 @@
 package com.zutjmx.springboot.app.controllers;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.net.MalformedURLException;
 import java.util.Map;
-import java.util.UUID;
-
 import javax.validation.Valid;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 //import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -32,6 +29,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 //import com.zutjmx.springboot.app.models.dao.IClienteDao;
 import com.zutjmx.springboot.app.models.entity.Cliente;
 import com.zutjmx.springboot.app.models.service.IClienteService;
+import com.zutjmx.springboot.app.models.service.IUploadFileService;
 import com.zutjmx.springboot.app.util.paginator.PageRender;
 
 @Controller
@@ -41,8 +39,26 @@ public class ClienteController {
 	@Autowired
 	//@Qualifier("clienteDaoJPA")
 	private IClienteService clienteService;
+		
+	@Autowired
+	private IUploadFileService uploadFileService;
 	
-	private final Logger log = LoggerFactory.getLogger(getClass());
+	@GetMapping(value="/uploads/{filename:.+}")
+	public ResponseEntity<Resource> verFoto(@PathVariable String filename) {
+		
+		Resource recurso = null;
+		try {
+			recurso = uploadFileService.load(filename);
+		} catch (MalformedURLException e) {
+			e.printStackTrace();
+		}
+		
+		return ResponseEntity
+				.ok()
+				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment filename=\"" + recurso.getFilename() + "\"")
+				.body(recurso);
+		
+	}
 	
 	@GetMapping(value="/ver/{id}")
 	public String ver(@PathVariable(value="id") Long id, Map<String, Object> modelo, RedirectAttributes flash) {
@@ -111,31 +127,25 @@ public class ClienteController {
 		}
 		
 		if (!foto.isEmpty()) {
-			/*Path directorioRecursos = Paths.get("src//main/resources//static//uploads");
-			String rootPath = directorioRecursos.toFile().getAbsolutePath();*/
-			//String rootPath = "C://temp//uploads";
-			String uniqueFileName = UUID.randomUUID().toString() + "_" + foto.getOriginalFilename(); 
-			Path rootPath = Paths.get("uploads").resolve(uniqueFileName);
-			Path absolutePath = rootPath.toAbsolutePath();
 			
-			log.info("rootPath: " + rootPath);
-			log.info("absolutePath: " + absolutePath);
+			if (cliente.getId() != null 
+					&& cliente.getId() > 0 
+					&& cliente.getFoto() != null
+					&& cliente.getFoto().length() > 0) {				
+				uploadFileService.delete(cliente.getFoto());				
+			}
+			
+			String uniqueFileName = null;
 			
 			try {
-				
-				/*byte[] bytes = foto.getBytes();
-				Path rutaCompleta = Paths.get(rootPath + "//" + foto.getOriginalFilename());
-				Files.write(rutaCompleta, bytes);*/
-				
-				Files.copy(foto.getInputStream(), absolutePath);
-				flash.addFlashAttribute("info", "Has subido correctamente '" + foto.getOriginalFilename() + "'");
-				
-				//cliente.setFoto(foto.getOriginalFilename());
-				cliente.setFoto(uniqueFileName);
-								
+				uniqueFileName = uploadFileService.copy(foto);
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
+			
+			flash.addFlashAttribute("info", "Has subido correctamente '" + uniqueFileName + "'");			
+			cliente.setFoto(uniqueFileName);
+
 			
 		}
 		
@@ -150,8 +160,15 @@ public class ClienteController {
 	@RequestMapping(value="/eliminar/{id}")
 	public String eliminar(@PathVariable(value="id") Long id, RedirectAttributes flash) {		
 		if (id > 0) {
+			Cliente cliente = clienteService.findOne(id);
+			
 			clienteService.delete(id);
 			flash.addFlashAttribute("success", "Cliente eliminado de forma exitosa.");
+			
+			if (uploadFileService.delete(cliente.getFoto())) {
+				flash.addFlashAttribute("info", "El archivo de imagen " + cliente.getFoto() + " se eliminó con éxito.");
+			}
+			
 		}		
 		return "redirect:/listar";
 	}
