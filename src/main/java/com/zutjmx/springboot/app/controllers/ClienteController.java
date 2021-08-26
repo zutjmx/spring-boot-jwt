@@ -17,6 +17,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.annotation.Secured;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -56,6 +58,7 @@ public class ClienteController {
 	@Autowired
 	private IUploadFileService uploadFileService;
 	
+	@Secured("ROLE_USER")
 	@GetMapping(value="/uploads/{filename:.+}")
 	public ResponseEntity<Resource> verFoto(@PathVariable String filename) {
 		
@@ -73,6 +76,7 @@ public class ClienteController {
 		
 	}
 	
+	@PreAuthorize("hasRole('ROLE_USER')")
 	@GetMapping(value="/ver/{id}")
 	public String ver(@PathVariable(value="id") Long id, Map<String, Object> modelo, RedirectAttributes flash) {
 		
@@ -120,6 +124,12 @@ public class ClienteController {
 			logger.info("SecurityContextHolderAwareRequestWrapper <> Hola ".concat(auth.getName()).concat(", no tienes acceso <> SecurityContextHolderAwareRequestWrapper"));
 		}
 		
+		if (request.isUserInRole("ROLE_ADMIN")) {
+			logger.info("HttpServletRequest :: Hola ".concat(auth.getName()).concat(", tienes acceso :: HttpServletRequest"));
+		} else {
+			logger.info("HttpServletRequest <> Hola ".concat(auth.getName()).concat(", no tienes acceso <> HttpServletRequest"));
+		}
+		
 		Pageable pageRequest = PageRequest.of(page, 4);
 		
 		Page<Cliente> clientes = clienteService.findAll(pageRequest);		
@@ -131,6 +141,7 @@ public class ClienteController {
 		return "listar";
 	}
 	
+	@Secured("ROLE_ADMIN")
 	@RequestMapping(value="/formulario-cliente")
 	public String crear(Map<String, Object> modelo) {
 		Cliente cliente = new Cliente();
@@ -139,6 +150,7 @@ public class ClienteController {
 		return "formulario-cliente";
 	}
 	
+	@PreAuthorize("hasRole('ROLE_ADMIN')")
 	@RequestMapping(value="/formulario-cliente/{id}")
 	public String editar(@PathVariable(value="id") Long id, Map<String, Object> modelo, RedirectAttributes flash) {
 		
@@ -159,6 +171,7 @@ public class ClienteController {
 		return "formulario-cliente";
 	}
 	
+	@Secured("ROLE_ADMIN")
 	@RequestMapping(value="/formulario-cliente",method=RequestMethod.POST)
 	public String guardar(@Valid Cliente cliente, BindingResult resultado, Model modelo, @RequestParam("file") MultipartFile foto, RedirectAttributes flash, SessionStatus status) {
 		
@@ -198,6 +211,7 @@ public class ClienteController {
 		return "redirect:listar";
 	}
 	
+	@Secured("ROLE_ADMIN")
 	@RequestMapping(value="/eliminar/{id}")
 	public String eliminar(@PathVariable(value="id") Long id, RedirectAttributes flash) {		
 		if (id > 0) {
