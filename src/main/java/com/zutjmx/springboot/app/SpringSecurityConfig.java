@@ -1,7 +1,9 @@
 package com.zutjmx.springboot.app;
 
+import javax.sql.DataSource;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
+//import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
@@ -19,7 +21,13 @@ import com.zutjmx.springboot.app.auth.handler.LoginSuccessHandler;
 public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
 	
 	@Autowired
+	private BCryptPasswordEncoder passwordEncoder; 
+	
+	@Autowired
 	private LoginSuccessHandler successHandler;
+	
+	@Autowired
+	private DataSource dataSource; 
 	
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
@@ -42,14 +50,21 @@ public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
 		.exceptionHandling().accessDeniedPage("/error_403");
 	}
 
-	@Bean
+	/*@Bean
 	public BCryptPasswordEncoder passwordEncoder() {		
 		return new BCryptPasswordEncoder();
-	}
+	}*/
 	
 	@Autowired
 	public void configurerGlobal(AuthenticationManagerBuilder builder) throws Exception {		
-		PasswordEncoder encoder = passwordEncoder(); 		
+		
+		builder.jdbcAuthentication()
+			.dataSource(dataSource)
+			.passwordEncoder(passwordEncoder)
+			.usersByUsernameQuery("select username, password, enabled from users where username = ?")
+			.authoritiesByUsernameQuery("select u.username, a.authority from authorities a inner join users u on (a.user_id = u.id) where u.username = ?");
+		
+		/*PasswordEncoder encoder = this.passwordEncoder; 		
 		UserBuilder usuarios = User.builder().passwordEncoder(encoder::encode);
 		
 		builder.inMemoryAuthentication()
@@ -58,6 +73,7 @@ public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
 		    		             .roles("ADMIN","USER"))
 		       .withUser(usuarios.username("zutjmx")
   		             			 .password("123456")
-  		             			 .roles("USER"));
+  		             			 .roles("USER"));*/
+		
 	}
 }
