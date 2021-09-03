@@ -14,6 +14,8 @@
 					<a sec:authorize="hasRole('ROLE_ADMIN')" th:href="@{/formulario-cliente}" class="btn btn-primary btn-xs">Crear Cliente</a>
 					
 					<a th:href="@{'/listar'(format=csv)}" class="btn btn-success btn-xs float-right">Exportar a CSV</a>
+					<a th:href="@{'/listar'(format=xml)}" class="btn btn-outline-success btn-xs float-right">Exportar a XML</a>
+					<a th:href="@{'/listar'(format=json)}" class="btn btn-outline-warning btn-xs float-right">Exportar a JSON</a>
 					
 				</h4>		
 				
