@@ -15,6 +15,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 //import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.zutjmx.springboot.app.auth.filter.JWTAuthenticationFilter;
 import com.zutjmx.springboot.app.auth.handler.LoginSuccessHandler;
 import com.zutjmx.springboot.app.models.service.JpaUserDetailsService;
 
@@ -37,14 +38,14 @@ public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
 	@Override
 	protected void configure(HttpSecurity http) throws Exception {
 		http.authorizeRequests()
-			.antMatchers("/","/css/**","/js/**","/images/**","/listar**","/locale","/api/clientes/**").permitAll()
+			.antMatchers("/","/css/**","/js/**","/images/**","/listar**","/locale").permitAll() //,"/api/clientes/**"
 			/*.antMatchers("/ver/**").hasAnyRole("USER")*/
 			/*.antMatchers("/uploads/**").hasAnyRole("USER")*/
 			/*.antMatchers("/formulario-cliente/**").hasAnyRole("ADMIN")*/
 			/*.antMatchers("/eliminar/**").hasAnyRole("ADMIN")*/
 			/*.antMatchers("/factura/**").hasAnyRole("ADMIN")*/
 		.anyRequest().authenticated()
-		.and()
+		/*.and()
 			.formLogin()
 				.successHandler(successHandler)
 				.loginPage("/login")
@@ -52,8 +53,9 @@ public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
 		.and()
 		.logout().permitAll()
 		.and()
-		.exceptionHandling().accessDeniedPage("/error_403")
+		.exceptionHandling().accessDeniedPage("/error_403")*/
 		.and()
+		.addFilter(new JWTAuthenticationFilter(authenticationManager()))
 		.csrf().disable()
 		.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
 	}
