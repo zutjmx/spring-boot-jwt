@@ -1,6 +1,8 @@
 package com.zutjmx.springboot.app.auth.filter;
 
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,12 +16,17 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zutjmx.springboot.app.models.entity.Usuario;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -40,20 +47,32 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
 		String username = obtainUsername(request);
 		String password = obtainPassword(request);
 		
-		/*String username = request.getParameter("username");
-		String password = request.getParameter("password");*/
-
-		if (username == null) {
+		/*if (username == null) {
 			username = "";
 		}
 
 		if (password == null) {
 			password = "";
-		}
+		}*/
 
 		if (username != null && password != null) {
-			logger.info("Username en el form-data: ".concat(username));
-			logger.info("Password en el form-data: ".concat(password));
+			logger.info("Username en el body (form-data): ".concat(username));
+			logger.info("Password en el body (form-data): ".concat(password));
+		} else {
+			Usuario usuario = null;
+			try {
+				usuario = new ObjectMapper().readValue(request.getInputStream(), Usuario.class);
+				username = usuario.getUsername();
+				password = usuario.getPassword();
+				logger.info("Username en el body (raw / json): ".concat(username));
+				logger.info("Password en el body (raw / json): ".concat(password));
+			} catch (JsonParseException e) {
+				e.printStackTrace();
+			} catch (JsonMappingException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
 		
 		username = username.trim();
@@ -72,10 +91,17 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
 		
 		SecretKey secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS512);
 		
+		Collection<? extends GrantedAuthority> roles = authResult.getAuthorities();
+		
+		Claims claims = Jwts.claims();
+		claims.put("authorities", new ObjectMapper().writeValueAsString(roles));
+		
 		String token = Jwts.builder()
+				.setClaims(claims)
 				.setSubject(username)
-				//.signWith(SignatureAlgorithm.HS512, "Alguna.Clave.Secreta.123456".getBytes())
 				.signWith(secretKey)
+				.setIssuedAt(new Date())
+				.setExpiration(new Date(System.currentTimeMillis() + 14000000L))
 				.compact();
 		
 		response.addHeader("Authorization", "Bearer ".concat(token));
@@ -91,4 +117,16 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
 		
 	}
 
+	@Override
+	protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
+			AuthenticationException failed) throws IOException, ServletException {
+		Map<String, Object> body = new HashMap<String, Object>();
+		body.put("mensaje", "Error de autenticación: usuario y/o contraseña incorrectos.");
+		body.put("error", failed.getMessage());
+		
+		response.getWriter().write(new ObjectMapper().writeValueAsString(body));
+		response.setStatus(401);
+		response.setContentType("application/json");
+	}
+	
 }
