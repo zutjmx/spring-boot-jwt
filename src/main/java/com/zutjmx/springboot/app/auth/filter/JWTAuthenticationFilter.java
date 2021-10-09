@@ -1,12 +1,12 @@
 package com.zutjmx.springboot.app.auth.filter;
 
 import java.io.IOException;
+import java.security.Key;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.crypto.SecretKey;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -32,6 +32,8 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 
 public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
+	
+	public static final Key SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS512);
 
 	private AuthenticationManager authenticationManager;
 	
@@ -89,8 +91,6 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
 		
 		String username = ((User) authResult.getPrincipal()).getUsername();
 		
-		SecretKey secretKey = Keys.secretKeyFor(SignatureAlgorithm.HS512);
-		
 		Collection<? extends GrantedAuthority> roles = authResult.getAuthorities();
 		
 		Claims claims = Jwts.claims();
@@ -99,7 +99,7 @@ public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilte
 		String token = Jwts.builder()
 				.setClaims(claims)
 				.setSubject(username)
-				.signWith(secretKey)
+				.signWith(SECRET_KEY)
 				.setIssuedAt(new Date())
 				.setExpiration(new Date(System.currentTimeMillis() + 14000000L))
 				.compact();
